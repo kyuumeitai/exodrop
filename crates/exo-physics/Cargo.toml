@@ -1,0 +1,8 @@
+[package]
+name = "exo-physics"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+exo-core = { path = "../exo-core" }
+glam.workspace = true
