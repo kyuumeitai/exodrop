@@ -205,13 +205,13 @@ fn build_weapon_mortar() -> MeshData {
     b.build()
 }
 
-/// Layered additive-friendly thruster exhaust plume cone pointing downward (-Y).
+/// Sleek layered jet-fighter thruster exhaust cone pointing downward (-Y).
 fn build_thruster_plume() -> MeshData {
     let mut b = MeshBuilder::new();
-    let core = Material::glow(Vec3::new(0.85, 0.97, 1.0), Vec3::new(3.0, 4.5, 6.0));
-    let outer = Material::glow(Vec3::new(0.18, 0.75, 1.0), Vec3::new(0.6, 2.2, 4.2));
-    b.add_prism(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, -0.75, 0.0), 0.065, 0.005, 8, core);
-    b.add_prism(Vec3::new(0.0, -0.02, 0.0), Vec3::new(0.0, -1.35, 0.0), 0.105, 0.015, 8, outer);
+    let core = Material::glow(Vec3::new(0.82, 0.96, 1.0), Vec3::new(1.4, 2.4, 3.4));
+    let outer = Material::glow(Vec3::new(0.14, 0.68, 1.0), Vec3::new(0.25, 1.25, 2.4));
+    b.add_prism(Vec3::new(0.0, 0.0, 0.0), Vec3::new(0.0, -0.48, 0.0), 0.052, 0.004, 8, core);
+    b.add_prism(Vec3::new(0.0, -0.02, 0.0), Vec3::new(0.0, -0.92, 0.0), 0.078, 0.008, 8, outer);
     b.build()
 }
 

@@ -6,6 +6,7 @@ members = [
     "crates/exo-assets",
     "crates/exo-gfx",
     "crates/exo-audio",
+    "crates/exodrop",
 ]
 
 [workspace.package]

@@ -11,8 +11,8 @@ use winit::window::Window;
 
 const SHADOW_SIZE: u32 = 2048;
 const MAX_INSTANCES: usize = 4096;
-const MAX_FX_VERTS: usize = 24_000;
-const MAX_HUD_VERTS: usize = 48_000;
+const MAX_FX_VERTS: usize = 32_768;
+const MAX_HUD_VERTS: usize = 262_144;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Camera {
@@ -95,6 +95,7 @@ pub struct PointLight {
 pub struct FxVertex {
     pub position: [f32; 3],
     pub color: [f32; 4],
+    pub uv: [f32; 2],
 }
 
 /// Complete scene frame submitted from gameplay to the custom renderer.
@@ -746,6 +747,7 @@ impl Renderer {
             attributes: &[
                 wgpu::VertexAttribute { format: wgpu::VertexFormat::Float32x3, offset: 0, shader_location: 0 },
                 wgpu::VertexAttribute { format: wgpu::VertexFormat::Float32x4, offset: 12, shader_location: 1 },
+                wgpu::VertexAttribute { format: wgpu::VertexFormat::Float32x2, offset: 28, shader_location: 2 },
             ],
         };
         let fx_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -1515,17 +1517,17 @@ fn create_screen_targets(
 pub fn push_fx_billboard(out: &mut Vec<FxVertex>, center: Vec3, cam_right: Vec3, cam_up: Vec3, radius: f32, color: Vec4) {
     let r = cam_right * radius;
     let u = cam_up * radius;
-    let p0 = center - r - u;
-    let p1 = center + r - u;
-    let p2 = center + r + u;
-    let p3 = center - r + u;
+    let p0 = (center - r - u).to_array();
+    let p1 = (center + r - u).to_array();
+    let p2 = (center + r + u).to_array();
+    let p3 = (center - r + u).to_array();
     let col = color.to_array();
-    out.push(FxVertex { position: p0.to_array(), color: col });
-    out.push(FxVertex { position: p1.to_array(), color: col });
-    out.push(FxVertex { position: p2.to_array(), color: col });
-    out.push(FxVertex { position: p0.to_array(), color: col });
-    out.push(FxVertex { position: p2.to_array(), color: col });
-    out.push(FxVertex { position: p3.to_array(), color: col });
+    out.push(FxVertex { position: p0, color: col, uv: [-1.0, -1.0] });
+    out.push(FxVertex { position: p1, color: col, uv: [1.0, -1.0] });
+    out.push(FxVertex { position: p2, color: col, uv: [1.0, 1.0] });
+    out.push(FxVertex { position: p0, color: col, uv: [-1.0, -1.0] });
+    out.push(FxVertex { position: p2, color: col, uv: [1.0, 1.0] });
+    out.push(FxVertex { position: p3, color: col, uv: [-1.0, 1.0] });
 }
 
 pub fn push_fx_beam(out: &mut Vec<FxVertex>, a: Vec3, b: Vec3, cam_eye: Vec3, width: f32, color_a: Vec4, color_b: Vec4) {
@@ -1538,10 +1540,10 @@ pub fn push_fx_beam(out: &mut Vec<FxVertex>, a: Vec3, b: Vec3, cam_eye: Vec3, wi
     let p1 = (a + side).to_array();
     let p2 = (b + side).to_array();
     let p3 = (b - side).to_array();
-    out.push(FxVertex { position: p0, color: ca });
-    out.push(FxVertex { position: p1, color: ca });
-    out.push(FxVertex { position: p2, color: cb });
-    out.push(FxVertex { position: p0, color: ca });
-    out.push(FxVertex { position: p2, color: cb });
-    out.push(FxVertex { position: p3, color: cb });
+    out.push(FxVertex { position: p0, color: ca, uv: [-1.0, 0.0] });
+    out.push(FxVertex { position: p1, color: ca, uv: [1.0, 0.0] });
+    out.push(FxVertex { position: p2, color: cb, uv: [1.0, 0.0] });
+    out.push(FxVertex { position: p0, color: ca, uv: [-1.0, 0.0] });
+    out.push(FxVertex { position: p2, color: cb, uv: [1.0, 0.0] });
+    out.push(FxVertex { position: p3, color: cb, uv: [-1.0, 0.0] });
 }

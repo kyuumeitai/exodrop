@@ -150,15 +150,22 @@ impl HudDrawList {
             }
             if let Some(rows) = glyph_5x7(uc) {
                 for (ry, &bits) in rows.iter().enumerate() {
-                    for rx in 0..5 {
+                    let mut rx = 0usize;
+                    while rx < 5 {
                         if (bits & (1 << (4 - rx))) != 0 {
+                            let start = rx;
+                            while rx < 5 && (bits & (1 << (4 - rx))) != 0 {
+                                rx += 1;
+                            }
                             self.rect(
-                                cursor_x + rx as f32 * scale,
+                                cursor_x + start as f32 * scale,
                                 y + ry as f32 * scale,
-                                scale,
+                                (rx - start) as f32 * scale,
                                 scale,
                                 color,
                             );
+                        } else {
+                            rx += 1;
                         }
                     }
                 }
@@ -251,6 +258,8 @@ fn glyph_5x7(c: char) -> Option<[u8; 7]> {
         '>' => [0b01000, 0b00100, 0b00010, 0b00001, 0b00010, 0b00100, 0b01000],
         '_' => [0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b11111],
         '|' => [0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100],
+        '&' => [0b01100, 0b10010, 0b10100, 0b01000, 0b10101, 0b10010, 0b01101],
+        '=' => [0b00000, 0b00000, 0b11111, 0b00000, 0b11111, 0b00000, 0b00000],
         ' ' => return None,
         _ => return None,
     })
