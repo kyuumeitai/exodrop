@@ -12,9 +12,9 @@ Lead a three-trooper orbital drop squad equipped with powered jump-jet exo-suits
 | :---: | :---: |
 | ![Crimson Mesa Combat](docs/shot_mesa_action.png) | ![Europa Glacial Rift](docs/shot_europa_hero.png) |
 
-| Io Obsidian Caldera — Afterburner Flight (Sector 03) |
-| :---: |
-| ![Io Caldera Aerial](docs/shot_io_aerial.png) |
+| Io Obsidian Caldera — Afterburner Flight (Sector 03) | Mobile Touch Controls HUD (iOS & Android) |
+| :---: | :---: |
+| ![Io Caldera Aerial](docs/shot_io_aerial.png) | ![Mobile Touch Controls](docs/shot_mobile_touch.png) |
 
 ## Highlights
 
@@ -52,6 +52,26 @@ cargo run --release -p exodrop -- --sector 1
 
 # Headless offscreen screenshot capture (no window required)
 cargo run --release -p exodrop -- --screenshot out.png --sector 2 --cam aerial --size 1920x1080
+
+# Preview mobile touch controls HUD on desktop
+cargo run --release -p exodrop -- --touch-ui
+```
+
+## Mobile Builds (iOS & Android)
+
+EXODROP compiles natively to **iOS** (Metal + UIKit + CoreAudio) and **Android** (Vulkan/GLES + NativeActivity + Oboe) with full multi-touch twin-stick controls, surface suspend/resume lifecycle, and a `Mobile` GPU quality preset (`1024×1024` shadow maps, single-pass HDR bloom).
+
+```bash
+# Prerequisites:
+rustup target add aarch64-apple-ios aarch64-apple-ios-sim aarch64-linux-android
+
+# Build iOS Simulator .app bundle (or pass "device" for physical iPhone/iPad)
+./scripts/build_ios.sh sim release
+./scripts/build_ios.sh device release
+
+# Build Android arm64-v8a APK (uses ANDROID_HOME / NDK + Gradle)
+./scripts/build_android.sh release
+# Output: mobile/android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
 ## Controls

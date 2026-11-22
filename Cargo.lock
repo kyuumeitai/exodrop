@@ -590,6 +590,7 @@ dependencies = [
 name = "exodrop"
 version = "0.1.0"
 dependencies = [
+ "android-activity",
  "exo-assets",
  "exo-audio",
  "exo-core",

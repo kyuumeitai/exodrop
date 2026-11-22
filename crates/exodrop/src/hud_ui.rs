@@ -13,19 +13,19 @@ const MUTED: Vec4 = Vec4::new(0.65, 0.74, 0.84, 0.80);
 const PANEL_BG: Vec4 = Vec4::new(0.03, 0.05, 0.09, 0.64);
 const PANEL_EDGE: Vec4 = Vec4::new(0.20, 0.78, 0.95, 0.55);
 
-pub fn build_hud(game: &GameState, cam: &Camera, width: f32, height: f32, hud: &mut HudDrawList) {
+pub fn build_hud(game: &GameState, cam: &Camera, width: f32, height: f32, touch_ui: bool, hud: &mut HudDrawList) {
     hud.clear();
     match game.mode {
         GameMode::Title => build_title_screen(game, width, height, hud),
-        GameMode::Playing => build_combat_hud(game, cam, width, height, hud),
+        GameMode::Playing => build_combat_hud(game, cam, width, height, touch_ui, hud),
         GameMode::Paused => {
-            build_combat_hud(game, cam, width, height, hud);
+            build_combat_hud(game, cam, width, height, touch_ui, hud);
             build_overlay_box(
                 width,
                 height,
                 "MISSION PAUSED",
                 &[
-                    "[ESC / ENTER] RESUME FLIGHT",
+                    "[ESC / ENTER / TAP] RESUME FLIGHT",
                     "[R] REDEPLOY SECTOR",
                     "[N] NEXT PLANETARY SECTOR",
                 ],
@@ -34,28 +34,28 @@ pub fn build_hud(game: &GameState, cam: &Camera, width: f32, height: f32, hud: &
             );
         }
         GameMode::SectorCleared => {
-            build_combat_hud(game, cam, width, height, hud);
+            build_combat_hud(game, cam, width, height, touch_ui, hud);
             build_overlay_box(
                 width,
                 height,
                 "SECTOR SECURED!",
                 &[
                     &format!("FINAL SCORE: {}   HOSTILES ELIMINATED: {}", game.score, game.kills),
-                    "[ENTER / SPACE] ORBITAL DROP TO NEXT SECTOR",
+                    "[ENTER / SPACE / TAP] ORBITAL DROP TO NEXT SECTOR",
                 ],
                 GREEN,
                 hud,
             );
         }
         GameMode::GameOver => {
-            build_combat_hud(game, cam, width, height, hud);
+            build_combat_hud(game, cam, width, height, touch_ui, hud);
             build_overlay_box(
                 width,
                 height,
                 "EXO-SUIT CRITICAL FAILURE",
                 &[
                     &format!("SCORE: {}   HOSTILES ELIMINATED: {}", game.score, game.kills),
-                    "[ENTER / R] RELAUNCH DROP POD",
+                    "[ENTER / R / TAP] RELAUNCH DROP POD",
                 ],
                 RED,
                 hud,
@@ -140,7 +140,7 @@ fn build_title_screen(game: &GameState, w: f32, h: f32, hud: &mut HudDrawList) {
     );
 }
 
-fn build_combat_hud(game: &GameState, cam: &Camera, w: f32, h: f32, hud: &mut HudDrawList) {
+fn build_combat_hud(game: &GameState, cam: &Camera, w: f32, h: f32, touch_ui: bool, hud: &mut HudDrawList) {
     let cx = w * 0.5;
     let cy = h * 0.5;
 
@@ -363,9 +363,9 @@ fn build_combat_hud(game: &GameState, cam: &Camera, w: f32, h: f32, hud: &mut Hu
         MUTED,
     );
 
-    // --- 6. BOTTOM-RIGHT ARSENAL & SQUAD ORDER ---
-    let wx = w - 350.0;
-    let wy = h - 122.0;
+    // --- 6. BOTTOM-RIGHT ARSENAL & SQUAD ORDER (shifts center-bottom when mobile touch buttons are visible) ---
+    let wx = if touch_ui { w * 0.5 - 163.0 } else { w - 350.0 };
+    let wy = h - 118.0;
     hud.slanted_rect(wx, wy, 326.0, 102.0, -10.0, PANEL_BG);
     hud.text_shadow(game.weapon.name(), wx + 18.0, wy + 12.0, 1.9, w_col);
 

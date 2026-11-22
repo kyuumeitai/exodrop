@@ -9,10 +9,42 @@ use std::sync::Arc;
 use wgpu::util::DeviceExt;
 use winit::window::Window;
 
-const SHADOW_SIZE: u32 = 2048;
 const MAX_INSTANCES: usize = 4096;
 const MAX_FX_VERTS: usize = 32_768;
 const MAX_HUD_VERTS: usize = 262_144;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum QualityPreset {
+    Desktop,
+    Mobile,
+}
+
+impl QualityPreset {
+    pub const fn platform_default() -> Self {
+        #[cfg(any(target_os = "android", target_os = "ios"))]
+        {
+            Self::Mobile
+        }
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
+        {
+            Self::Desktop
+        }
+    }
+
+    pub const fn shadow_size(self) -> u32 {
+        match self {
+            Self::Desktop => 2048,
+            Self::Mobile => 1024,
+        }
+    }
+
+    pub const fn bloom_passes(self) -> u32 {
+        match self {
+            Self::Desktop => 2,
+            Self::Mobile => 1,
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug)]
 pub struct Camera {
@@ -186,11 +218,14 @@ struct ScreenTargets {
 }
 
 pub struct Renderer {
+    instance: wgpu::Instance,
+    adapter: wgpu::Adapter,
     device: wgpu::Device,
     queue: wgpu::Queue,
     surface: Option<wgpu::Surface<'static>>,
     surface_config: Option<wgpu::SurfaceConfiguration>,
     output_format: wgpu::TextureFormat,
+    quality: QualityPreset,
     pub width: u32,
     pub height: u32,
 
@@ -273,7 +308,18 @@ impl Renderer {
         };
         surface.configure(&device, &config);
 
-        Self::init_internal(device, queue, Some(surface), Some(config), format, width.max(1), height.max(1))
+        Self::init_internal(
+            instance,
+            adapter,
+            device,
+            queue,
+            Some(surface),
+            Some(config),
+            format,
+            QualityPreset::platform_default(),
+            width.max(1),
+            height.max(1),
+        )
     }
 
     pub fn new_headless(width: u32, height: u32) -> Self {
@@ -292,22 +338,29 @@ impl Renderer {
         .expect("request headless GPU device");
 
         Self::init_internal(
+            instance,
+            adapter,
             device,
             queue,
             None,
             None,
             wgpu::TextureFormat::Rgba8UnormSrgb,
+            QualityPreset::Desktop,
             width.max(1),
             height.max(1),
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn init_internal(
+        instance: wgpu::Instance,
+        adapter: wgpu::Adapter,
         device: wgpu::Device,
         queue: wgpu::Queue,
         surface: Option<wgpu::Surface<'static>>,
         surface_config: Option<wgpu::SurfaceConfiguration>,
         output_format: wgpu::TextureFormat,
+        quality: QualityPreset,
         width: u32,
         height: u32,
     ) -> Self {
@@ -387,11 +440,12 @@ impl Renderer {
         });
 
         // Shadow map texture & comparison sampler
+        let shadow_size = quality.shadow_size();
         let shadow_tex = device.create_texture(&wgpu::TextureDescriptor {
             label: Some("shadow_map"),
             size: wgpu::Extent3d {
-                width: SHADOW_SIZE,
-                height: SHADOW_SIZE,
+                width: shadow_size,
+                height: shadow_size,
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,
@@ -913,11 +967,14 @@ impl Renderer {
         );
 
         Self {
+            instance,
+            adapter,
             device,
             queue,
             surface,
             surface_config,
             output_format,
+            quality,
             width,
             height,
             catalog_meshes,
@@ -955,6 +1012,45 @@ impl Renderer {
 
     pub fn set_terrain_mesh(&mut self, mesh: &MeshData) {
         self.terrain_mesh = Some(upload_mesh(&self.device, mesh));
+    }
+
+    /// Drop the window surface cleanly when Android/iOS backgrounds the app.
+    pub fn suspend_surface(&mut self) {
+        self.surface = None;
+        self.surface_config = None;
+    }
+
+    /// Recreate and configure the window surface when Android/iOS resumes foreground execution.
+    pub fn resume_surface(&mut self, window: Arc<Window>, width: u32, height: u32) {
+        let w = width.max(1);
+        let h = height.max(1);
+        let surface = self.instance.create_surface(window).expect("recreate wgpu surface");
+        let caps = surface.get_capabilities(&self.adapter);
+        let format = if caps.formats.contains(&self.output_format) {
+            self.output_format
+        } else {
+            caps.formats
+                .iter()
+                .copied()
+                .find(|f| f.is_srgb())
+                .unwrap_or(caps.formats[0])
+        };
+        let config = wgpu::SurfaceConfiguration {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format,
+            width: w,
+            height: h,
+            present_mode: wgpu::PresentMode::AutoVsync,
+            alpha_mode: caps.alpha_modes[0],
+            view_formats: vec![],
+            desired_maximum_frame_latency: 2,
+        };
+        surface.configure(&self.device, &config);
+        self.surface = Some(surface);
+        self.surface_config = Some(config);
+        if w != self.width || h != self.height {
+            self.resize(w, h);
+        }
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
@@ -1301,7 +1397,7 @@ impl Renderer {
             rp.set_bind_group(0, &self.targets.bright_bg, &[]);
             rp.draw(0..3, 0..1);
         }
-        for _ in 0..2 {
+        for _ in 0..self.quality.bloom_passes() {
             {
                 let mut rp = enc.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("bloom_blur_h"),

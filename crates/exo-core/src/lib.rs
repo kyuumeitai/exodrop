@@ -329,6 +329,7 @@ pub enum Key {
 pub struct InputState {
     pub keys_down: HashSet<Key>,
     pub keys_pressed: HashSet<Key>,
+    pub analog_move: Vec2,
     pub mouse_left: bool,
     pub mouse_left_pressed: bool,
     pub mouse_left_released: bool,

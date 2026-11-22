@@ -329,7 +329,8 @@ fn sample_shadow(world_pos: vec3<f32>, world_normal: vec3<f32>) -> f32 {
     if (uv.x < 0.01 || uv.x > 0.99 || uv.y < 0.01 || uv.y > 0.99 || ndc.z < 0.0 || ndc.z > 1.0) {
         return 1.0;
     }
-    let texel = 1.0 / 2048.0;
+    let dims = vec2<f32>(textureDimensions(shadow_tex));
+    let texel = 1.0 / max(dims.x, 1.0);
     var sum = 0.0;
     for (var dy = -1; dy <= 1; dy++) {
         for (var dx = -1; dx <= 1; dx++) {

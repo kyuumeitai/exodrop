@@ -3,6 +3,15 @@ name = "exodrop"
 version.workspace = true
 edition.workspace = true
 
+[lib]
+name = "exodrop"
+path = "src/lib.rs"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[[bin]]
+name = "exodrop"
+path = "src/main.rs"
+
 [dependencies]
 exo-core = { path = "../exo-core" }
 exo-physics = { path = "../exo-physics" }
@@ -12,3 +21,7 @@ exo-audio = { path = "../exo-audio" }
 glam.workspace = true
 winit.workspace = true
 log.workspace = true
+
+[target.'cfg(target_os = "android")'.dependencies]
+winit = { version = "0.30", features = ["android-native-activity"] }
+android-activity = { version = "0.6", features = ["native-activity"] }

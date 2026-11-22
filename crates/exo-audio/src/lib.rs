@@ -323,6 +323,24 @@ impl AudioEngine {
             s.trigger(event);
         }
     }
+
+    pub fn pause(&self) {
+        if let Ok(mut s) = self.state.try_lock() {
+            s.muted = true;
+        }
+        if let Some(stream) = &self._stream {
+            let _ = stream.pause();
+        }
+    }
+
+    pub fn resume(&self) {
+        if let Ok(mut s) = self.state.try_lock() {
+            s.muted = false;
+        }
+        if let Some(stream) = &self._stream {
+            let _ = stream.play();
+        }
+    }
 }
 
 impl Default for AudioEngine {

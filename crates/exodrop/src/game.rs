@@ -368,6 +368,25 @@ impl GameState {
             if input.key_pressed(Key::Digit2) { self.select_weapon(WeaponKind::RailLance); }
             if input.key_pressed(Key::Digit3) { self.select_weapon(WeaponKind::MicroMissiles); }
             if input.key_pressed(Key::Digit4) { self.select_weapon(WeaponKind::ArcMortar); }
+            if input.key_pressed(Key::Tab) {
+                let next = (self.weapon as usize + 1) % WeaponKind::ALL.len();
+                self.select_weapon(WeaponKind::from_index(next));
+            }
+            if input.key_pressed(Key::Q) {
+                self.squad_order = match self.squad_order {
+                    SquadOrder::Follow => SquadOrder::AttackTarget,
+                    SquadOrder::AttackTarget => {
+                        self.hold_point = self.player.position;
+                        SquadOrder::HoldPosition
+                    }
+                    SquadOrder::HoldPosition => SquadOrder::Follow,
+                };
+                audio.play(SoundEvent::SquadAck);
+                self.push_comms(
+                    format!("ECHO SQUAD: {}!", self.squad_order.label()),
+                    Vec4::new(0.4, 0.95, 1.0, 1.0),
+                );
+            }
             if input.scroll_delta.abs() > 0.1 {
                 let idx = self.weapon as isize + if input.scroll_delta > 0.0 { -1 } else { 1 };
                 self.select_weapon(WeaponKind::from_index(idx.rem_euclid(4) as usize));
@@ -476,12 +495,15 @@ impl GameState {
             self.shield = (self.shield + 22.0 * dt).min(self.max_shield);
         }
 
-        // 1. Step Player Exo-Suit Physics
-        let mut mv = Vec2::ZERO;
+        // 1. Step Player Exo-Suit Physics (keyboard WASD + mobile analog thumbstick)
+        let mut mv = input.analog_move;
         if input.key_down(Key::W) { mv.y += 1.0; }
         if input.key_down(Key::S) { mv.y -= 1.0; }
         if input.key_down(Key::D) { mv.x += 1.0; }
         if input.key_down(Key::A) { mv.x -= 1.0; }
+        if mv.length_squared() > 1.0 {
+            mv = mv.normalize();
+        }
 
         let suit_in = ExoSuitInput {
             move_dir: mv,

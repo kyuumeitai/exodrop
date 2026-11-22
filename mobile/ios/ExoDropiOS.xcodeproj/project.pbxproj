@@ -1,0 +1,212 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		AA0000010000000000000001 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = AA0000020000000000000001 /* main.m */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		AA0000020000000000000001 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		AA0000020000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AA0000020000000000000003 /* ExoDropiOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ExoDropiOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		AA0000030000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		AA0000040000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				AA0000040000000000000002 /* ExoDropiOS */,
+				AA0000040000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		AA0000040000000000000002 /* ExoDropiOS */ = {
+			isa = PBXGroup;
+			children = (
+				AA0000020000000000000001 /* main.m */,
+				AA0000020000000000000002 /* Info.plist */,
+			);
+			path = ExoDropiOS;
+			sourceTree = "<group>";
+		};
+		AA0000040000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AA0000020000000000000003 /* ExoDropiOS.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AA0000050000000000000001 /* ExoDropiOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA0000080000000000000002 /* Build configuration list for PBXNativeTarget "ExoDropiOS" */;
+			buildPhases = (
+				AA0000060000000000000001 /* Sources */,
+				AA0000030000000000000001 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ExoDropiOS;
+			productName = ExoDropiOS;
+			productReference = AA0000020000000000000003 /* ExoDropiOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AA0000070000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1600;
+			};
+			buildConfigurationList = AA0000080000000000000001 /* Build configuration list for PBXProject "ExoDropiOS" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = AA0000040000000000000001;
+			productRefGroup = AA0000040000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				AA0000050000000000000001 /* ExoDropiOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		AA0000060000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA0000010000000000000001 /* main.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		AA0000090000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AA0000090000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		AA0000090000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				INFOPLIST_FILE = ExoDropiOS/Info.plist;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/libs/$(PLATFORM_NAME)",
+				);
+				OTHER_LDFLAGS = (
+					"-lexodrop",
+					"-framework", "UIKit",
+					"-framework", "Foundation",
+					"-framework", "Metal",
+					"-framework", "QuartzCore",
+					"-framework", "CoreGraphics",
+					"-framework", "CoreAudio",
+					"-framework", "AudioToolbox",
+					"-framework", "AVFoundation",
+					"-framework", "CoreFoundation",
+					"-framework", "Security",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kyuumeitai.exodrop;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		AA0000090000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				INFOPLIST_FILE = ExoDropiOS/Info.plist;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/libs/$(PLATFORM_NAME)",
+				);
+				OTHER_LDFLAGS = (
+					"-lexodrop",
+					"-framework", "UIKit",
+					"-framework", "Foundation",
+					"-framework", "Metal",
+					"-framework", "QuartzCore",
+					"-framework", "CoreGraphics",
+					"-framework", "CoreAudio",
+					"-framework", "AudioToolbox",
+					"-framework", "AVFoundation",
+					"-framework", "CoreFoundation",
+					"-framework", "Security",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.kyuumeitai.exodrop;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		AA0000080000000000000001 /* Build configuration list for PBXProject "ExoDropiOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0000090000000000000001 /* Debug */,
+				AA0000090000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA0000080000000000000002 /* Build configuration list for PBXNativeTarget "ExoDropiOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0000090000000000000003 /* Debug */,
+				AA0000090000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = AA0000070000000000000001 /* Project object */;
+}
