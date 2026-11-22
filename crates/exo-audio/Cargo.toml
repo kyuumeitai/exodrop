@@ -1,0 +1,8 @@
+[package]
+name = "exo-audio"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+cpal.workspace = true
+log.workspace = true

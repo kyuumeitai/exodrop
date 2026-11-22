@@ -1,0 +1,15 @@
+[package]
+name = "exo-gfx"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+exo-core = { path = "../exo-core" }
+exo-assets = { path = "../exo-assets" }
+glam.workspace = true
+bytemuck.workspace = true
+wgpu.workspace = true
+winit.workspace = true
+pollster.workspace = true
+png.workspace = true
+log.workspace = true

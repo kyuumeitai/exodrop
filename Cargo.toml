@@ -4,6 +4,8 @@ members = [
     "crates/exo-core",
     "crates/exo-physics",
     "crates/exo-assets",
+    "crates/exo-gfx",
+    "crates/exo-audio",
 ]
 
 [workspace.package]
