@@ -1,0 +1,10 @@
+[package]
+name = "exo-assets"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+exo-core = { path = "../exo-core" }
+exo-physics = { path = "../exo-physics" }
+glam.workspace = true
+bytemuck.workspace = true

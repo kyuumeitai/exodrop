@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/exo-core",
     "crates/exo-physics",
+    "crates/exo-assets",
 ]
 
 [workspace.package]

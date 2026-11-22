@@ -23,6 +23,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "exo-assets"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "exo-core",
+ "exo-physics",
+ "glam",
+]
+
+[[package]]
 name = "exo-core"
 version = "0.1.0"
 dependencies = [

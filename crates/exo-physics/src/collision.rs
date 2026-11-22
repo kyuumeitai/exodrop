@@ -153,7 +153,6 @@ pub fn raycast_aabb(origin: Vec3, dir: Vec3, aabb: &Aabb, max_t: f32) -> Option<
 /// Raymarch + binary refinement against terrain heightfield.
 pub fn raycast_terrain(origin: Vec3, dir: Vec3, terrain: &Terrain, max_dist: f32) -> Option<RayHit> {
     let mut t = 0.0_f32;
-    let mut step = 1.5_f32;
     let mut prev_t = 0.0_f32;
 
     while t < max_dist {
@@ -183,7 +182,7 @@ pub fn raycast_terrain(origin: Vec3, dir: Vec3, terrain: &Terrain, max_dist: f32
         prev_t = t;
         // Adaptive step based on altitude above terrain
         let clearance = (p.y - h).max(0.0);
-        step = (clearance * 0.45).clamp(1.2, 10.0);
+        let step = (clearance * 0.45).clamp(1.2, 10.0);
         t += step;
     }
     None
