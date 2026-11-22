@@ -587,6 +587,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "exodrop"
+version = "0.1.0"
+dependencies = [
+ "exo-assets",
+ "exo-audio",
+ "exo-core",
+ "exo-gfx",
+ "exo-physics",
+ "glam",
+ "log",
+ "winit",
+]
+
+[[package]]
 name = "fdeflate"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
