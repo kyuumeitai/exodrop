@@ -27,6 +27,7 @@ pub struct CliArgs {
     pub width: u32,
     pub height: u32,
     pub touch_ui: bool,
+    pub no_hud: bool,
 }
 
 impl Default for CliArgs {
@@ -38,6 +39,7 @@ impl Default for CliArgs {
             width: 1280,
             height: 720,
             touch_ui: cfg!(any(target_os = "android", target_os = "ios")),
+            no_hud: false,
         }
     }
 }
@@ -73,6 +75,9 @@ pub fn parse_args() -> CliArgs {
             "--touch-ui" => {
                 cli.touch_ui = true;
             }
+            "--no-hud" => {
+                cli.no_hud = true;
+            }
             _ => {}
         }
     }
@@ -99,8 +104,14 @@ pub fn run_desktop() {
 
         let cam = game.current_camera();
         game.build_render_batches(&cam, &mut instances, &mut lights, &mut fx_verts);
-        hud_ui::build_hud(&game, &cam, cli.width as f32, cli.height as f32, cli.touch_ui, &mut hud);
-        touch.draw_overlay(game.mode, cli.width as f32, cli.height as f32, &mut hud);
+        // --touch-ui captures use the phone HUD layout (virtual 720 px high), like the mobile builds.
+        let ui = if cli.touch_ui { (cli.width.min(cli.height) as f32 / 720.0).clamp(1.0, 2.0) } else { 1.0 };
+        renderer.set_hud_scale(ui);
+        let (uw, uh) = (cli.width as f32 / ui, cli.height as f32 / ui);
+        if !cli.no_hud {
+            hud_ui::build_hud(&game, &cam, uw, uh, cli.touch_ui, &mut hud);
+            touch.draw_overlay(game.mode, uw, uh, &mut hud);
+        }
 
         let frame = SceneFrame {
             camera: cam,

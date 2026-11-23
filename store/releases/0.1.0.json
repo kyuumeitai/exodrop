@@ -1,0 +1,9 @@
+{
+  "versionName": "0.1.0",
+  "versionCode": 1,
+  "releaseName": "0.1.0 (1) - First Android test build",
+  "releaseNotes": {
+    "en-US": "First test build of EXODROP on Android: three planetary sectors, four weapons, AI wingmen and the Dreadnought Goliath, with twin-stick touch controls. The 3D resolution adapts to your phone to keep it smooth.",
+    "es-419": "Primera versión de prueba de EXODROP en Android: tres sectores planetarios, cuatro armas, compañeros con IA y el Dreadnought Goliath, con controles táctiles de doble stick. La resolución 3D se adapta a tu teléfono para que corra fluido."
+  }
+}
