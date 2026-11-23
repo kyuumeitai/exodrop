@@ -1,10 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Build EXODROP Android arm64-v8a native library + APK.
-# Usage: ./scripts/build_android.sh [debug|release]
+# Build EXODROP for Android.
+#
+#   ./scripts/build_android.sh debug            # debug APK (installable with adb), release-optimised Rust
+#   ./scripts/build_android.sh release          # signed Play bundle (.aab) + signed release APK
+#
+# ABIS="arm64-v8a armeabi-v7a" by default (Play needs both to reach 32-bit-only phones such as Android Go devices).
+# Release signing reads ~/.android/upload-keys/exodrop-upload.properties (storeFile, storePassword, keyAlias,
+# keyPassword) or $EXODROP_SIGNING_PROPERTIES.
+# Outputs:
+#   debug   -> mobile/android/app/build/outputs/apk/debug/app-debug.apk
+#   release -> mobile/android/app/build/outputs/bundle/release/app-release.aab
+#              mobile/android/app/build/outputs/apk/release/app-release.apk
 
-PROFILE="${1:-release}"
+MODE="${1:-debug}"
+ABIS="${ABIS:-arm64-v8a armeabi-v7a}"
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
@@ -19,44 +30,58 @@ if [[ -z "$NDK_DIR" || ! -d "$NDK_DIR" ]]; then
     echo "Error: Android NDK not found under $ANDROID_SDK/ndk." >&2
     exit 1
 fi
-
-HOST_TAG="$(uname -s | tr '[:upper:]' '[:lower:]')-x86_64"
-TOOLCHAIN="$NDK_DIR/toolchains/llvm/prebuilt/$HOST_TAG"
-if [[ ! -d "$TOOLCHAIN" ]]; then
-    TOOLCHAIN="$(ls -d "$NDK_DIR"/toolchains/llvm/prebuilt/* | head -n 1)"
-fi
+TOOLCHAIN="$(ls -d "$NDK_DIR"/toolchains/llvm/prebuilt/* | head -n 1)"
 
 API=26
 export ANDROID_HOME="$ANDROID_SDK"
 export ANDROID_NDK_HOME="$NDK_DIR"
 export ANDROID_NDK_ROOT="$NDK_DIR"
-export CC_aarch64_linux_android="$TOOLCHAIN/bin/aarch64-linux-android${API}-clang"
-export CXX_aarch64_linux_android="$TOOLCHAIN/bin/aarch64-linux-android${API}-clang++"
-export AR_aarch64_linux_android="$TOOLCHAIN/bin/llvm-ar"
-export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$TOOLCHAIN/bin/aarch64-linux-android${API}-clang"
 
-CARGO_FLAGS=""
-if [[ "$PROFILE" == "release" ]]; then
-    CARGO_FLAGS="--release"
-fi
+JNI_ROOT="$ROOT_DIR/mobile/android/app/src/main/jniLibs"
+rm -rf "$JNI_ROOT"
 
-echo "==> Building Rust cdylib (aarch64-linux-android, $PROFILE) with NDK $(basename "$NDK_DIR")..."
-cargo build --lib -p exodrop --target aarch64-linux-android $CARGO_FLAGS
+for ABI in $ABIS; do
+    case "$ABI" in
+        arm64-v8a)   TARGET=aarch64-linux-android;   CLANG=aarch64-linux-android;    SYSLIB=aarch64-linux-android ;;
+        armeabi-v7a) TARGET=armv7-linux-androideabi; CLANG=armv7a-linux-androideabi; SYSLIB=arm-linux-androideabi ;;
+        x86_64)      TARGET=x86_64-linux-android;    CLANG=x86_64-linux-android;     SYSLIB=x86_64-linux-android ;;
+        *) echo "Unsupported ABI $ABI" >&2; exit 1 ;;
+    esac
+    TU="$(echo "$TARGET" | tr 'a-z-' 'A-Z_')"
+    TL="$(echo "$TARGET" | tr '-' '_')"
+    export "CC_${TL}=$TOOLCHAIN/bin/${CLANG}${API}-clang"
+    export "CXX_${TL}=$TOOLCHAIN/bin/${CLANG}${API}-clang++"
+    export "AR_${TL}=$TOOLCHAIN/bin/llvm-ar"
+    export "CARGO_TARGET_${TU}_LINKER=$TOOLCHAIN/bin/${CLANG}${API}-clang"
 
-JNI_DIR="$ROOT_DIR/mobile/android/app/src/main/jniLibs/arm64-v8a"
-mkdir -p "$JNI_DIR"
-cp "$ROOT_DIR/target/aarch64-linux-android/$PROFILE/libexodrop.so" "$JNI_DIR/libexodrop.so"
+    echo "==> Building Rust cdylib for $ABI ($TARGET, release) with NDK $(basename "$NDK_DIR")..."
+    cargo build --lib -p exodrop --release --target "$TARGET"
 
-# Bundle libc++_shared.so for Oboe (cpal Android audio)
-LIBCPP="$TOOLCHAIN/sysroot/usr/lib/aarch64-linux-android/libc++_shared.so"
-if [[ -f "$LIBCPP" ]]; then
-    cp "$LIBCPP" "$JNI_DIR/libc++_shared.so"
-fi
+    mkdir -p "$JNI_ROOT/$ABI"
+    # Strip debug info: the unstripped arm64 library is ~136 MB, stripped it is a few MB.
+    "$TOOLCHAIN/bin/llvm-strip" --strip-unneeded \
+        -o "$JNI_ROOT/$ABI/libexodrop.so" "$ROOT_DIR/target/$TARGET/release/libexodrop.so"
+    # libc++_shared.so for Oboe (cpal Android audio)
+    cp "$TOOLCHAIN/sysroot/usr/lib/$SYSLIB/libc++_shared.so" "$JNI_ROOT/$ABI/libc++_shared.so"
+    ls -lh "$JNI_ROOT/$ABI"
+done
 
-echo "==> Assembling Android APK with Gradle..."
 cd "$ROOT_DIR/mobile/android"
 printf "sdk.dir=%s\n" "$ANDROID_SDK" > local.properties
-gradle assembleDebug
+export EXODROP_ABIS="$(echo $ABIS | tr ' ' ',')"
 
-APK_PATH="$ROOT_DIR/mobile/android/app/build/outputs/apk/debug/app-debug.apk"
-echo "✅ Android APK built: $APK_PATH"
+if [[ "$MODE" == "release" ]]; then
+    PROPS="${EXODROP_SIGNING_PROPERTIES:-$HOME/.android/upload-keys/exodrop-upload.properties}"
+    if [[ ! -f "$PROPS" ]]; then
+        echo "Error: release signing properties not found at $PROPS" >&2
+        exit 1
+    fi
+    export EXODROP_SIGNING_PROPERTIES="$PROPS"
+    echo "==> Gradle bundleRelease + assembleRelease..."
+    gradle --quiet bundleRelease assembleRelease
+    ls -lh app/build/outputs/bundle/release/app-release.aab app/build/outputs/apk/release/app-release.apk
+else
+    echo "==> Gradle assembleDebug..."
+    gradle --quiet assembleDebug
+    ls -lh app/build/outputs/apk/debug/app-debug.apk
+fi

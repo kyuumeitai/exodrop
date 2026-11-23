@@ -16,7 +16,7 @@ const PANEL_EDGE: Vec4 = Vec4::new(0.20, 0.78, 0.95, 0.55);
 pub fn build_hud(game: &GameState, cam: &Camera, width: f32, height: f32, touch_ui: bool, hud: &mut HudDrawList) {
     hud.clear();
     match game.mode {
-        GameMode::Title => build_title_screen(game, width, height, hud),
+        GameMode::Title => build_title_screen(game, width, height, touch_ui, hud),
         GameMode::Playing => build_combat_hud(game, cam, width, height, touch_ui, hud),
         GameMode::Paused => {
             build_combat_hud(game, cam, width, height, touch_ui, hud);
@@ -24,11 +24,11 @@ pub fn build_hud(game: &GameState, cam: &Camera, width: f32, height: f32, touch_
                 width,
                 height,
                 "MISSION PAUSED",
-                &[
-                    "[ESC / ENTER / TAP] RESUME FLIGHT",
-                    "[R] REDEPLOY SECTOR",
-                    "[N] NEXT PLANETARY SECTOR",
-                ],
+                if touch_ui {
+                    &["[ TAP ] RESUME FLIGHT"]
+                } else {
+                    &["[ESC / ENTER / TAP] RESUME FLIGHT", "[R] REDEPLOY SECTOR", "[N] NEXT PLANETARY SECTOR"]
+                },
                 CYAN,
                 hud,
             );
@@ -64,7 +64,7 @@ pub fn build_hud(game: &GameState, cam: &Camera, width: f32, height: f32, touch_
     }
 }
 
-fn build_title_screen(game: &GameState, w: f32, h: f32, hud: &mut HudDrawList) {
+fn build_title_screen(game: &GameState, w: f32, h: f32, touch_ui: bool, hud: &mut HudDrawList) {
     // Sleek cinematic letterbox tint bands
     hud.rect(0.0, 0.0, w, 72.0, Vec4::new(0.02, 0.04, 0.08, 0.72));
     hud.rect(0.0, h - 94.0, w, 94.0, Vec4::new(0.02, 0.04, 0.08, 0.80));
@@ -114,7 +114,7 @@ fn build_title_screen(game: &GameState, w: f32, h: f32, hud: &mut HudDrawList) {
     hud.rect(cx, cy, 384.0, 224.0, PANEL_BG);
     hud.rect_outline(cx, cy, 384.0, 224.0, 1.5, PANEL_EDGE);
     hud.text_shadow("FLIGHT & COMBAT CONTROLS", cx + 16.0, cy + 14.0, 2.0, CYAN);
-    let lines = [
+    let key_lines = [
         "WASD        MOVE / AIR STRAFE",
         "SPACE       JUMP / VERTICAL JETS",
         "SHIFT       AFTERBURNER FLIGHT BOOST",
@@ -124,6 +124,17 @@ fn build_title_screen(game: &GameState, w: f32, h: f32, hud: &mut HudDrawList) {
         "F1 F2 F3    SQUAD FOLLOW/ATTACK/HOLD",
         "V / N       1ST-3RD VIEW / NEXT WORLD",
     ];
+    let touch_lines = [
+        "LEFT STICK  MOVE / AIR STRAFE",
+        "RIGHT DRAG  AIM / FLIGHT VECTOR",
+        "JETS        JUMP / VERTICAL JETS",
+        "BOOST       AFTERBURNER FLIGHT BOOST",
+        "SLAM        AERIAL SEISMIC DIVE-SLAM",
+        "FIRE        HOLD SWARM POD TO LOCK",
+        "WPN / SQD   SWITCH WEAPON / SQUAD ORDER",
+        "CAM / II    1ST-3RD VIEW / PAUSE",
+    ];
+    let lines = if touch_ui { touch_lines } else { key_lines };
     for (i, line) in lines.iter().enumerate() {
         hud.text(line, cx + 16.0, cy + 44.0 + i as f32 * 21.0, 1.55, WHITE);
     }
@@ -132,7 +143,11 @@ fn build_title_screen(game: &GameState, w: f32, h: f32, hud: &mut HudDrawList) {
     let pulse = 0.65 + 0.35 * (game.time * 4.0).sin();
     let prompt_col = Vec4::new(0.22, 0.96, 1.0, pulse);
     hud.text_centered_shadow(
-        "[ PRESS ENTER OR CLICK TO INITIATE ORBITAL DROP ]",
+        if touch_ui {
+            "[ TAP A SECTOR, THEN TAP TO INITIATE ORBITAL DROP ]"
+        } else {
+            "[ PRESS ENTER OR CLICK TO INITIATE ORBITAL DROP ]"
+        },
         w * 0.5,
         h - 58.0,
         2.6,

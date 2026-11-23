@@ -17,7 +17,7 @@ use winit::application::ApplicationHandler;
 use winit::dpi::LogicalSize;
 use winit::event::{DeviceEvent, DeviceId, ElementState, MouseButton, MouseScrollDelta, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
-use winit::keyboard::{KeyCode, PhysicalKey};
+use winit::keyboard::{KeyCode, NamedKey, PhysicalKey};
 use winit::window::{CursorGrabMode, Fullscreen, Window, WindowId};
 
 pub struct CliArgs {
@@ -133,6 +133,11 @@ pub fn run_desktop() {
 #[no_mangle]
 pub fn android_main(android_app: android_activity::AndroidApp) {
     use winit::platform::android::EventLoopBuilderExtAndroid;
+    android_logger::init_once(
+        android_logger::Config::default()
+            .with_max_level(log::LevelFilter::Info)
+            .with_tag("exodrop"),
+    );
     let event_loop = EventLoop::builder()
         .with_android_app(android_app)
         .build()
@@ -140,6 +145,9 @@ pub fn android_main(android_app: android_activity::AndroidApp) {
     event_loop.set_control_flow(ControlFlow::Poll);
     let mut app = ExoDropApp::new(BiomeId::CrimsonMesa, true);
     event_loop.run_app(&mut app).expect("run Android app");
+    // winit allows one event loop per process. If the activity is finished (Back on the title screen) and the
+    // launcher starts it again while the process is cached, a second android_main would panic, so end the process.
+    std::process::exit(0);
 }
 
 /// iOS staticlib entry point (called from `mobile/ios/ExoDropiOS/main.m`).
@@ -166,6 +174,10 @@ struct ExoDropApp {
     lights: Vec<PointLight>,
     fx_verts: Vec<FxVertex>,
     hud: HudDrawList,
+    fps_window_start: Instant,
+    fps_frames: u32,
+    /// Seconds in a row below the mobile FPS floor; triggers a render-scale step down.
+    slow_secs: f32,
 }
 
 impl ExoDropApp {
@@ -184,7 +196,27 @@ impl ExoDropApp {
             lights: Vec::with_capacity(16),
             fx_verts: Vec::with_capacity(4096),
             hud: HudDrawList::new(),
+            fps_window_start: Instant::now(),
+            fps_frames: 0,
+            slow_secs: 0.0,
         }
+    }
+
+    /// Touch builds lay the HUD and touch controls out in a virtual space 720 px high (up to 2x), so text and
+    /// buttons keep their physical size on 1080p+ phones. Desktop draws 1:1.
+    fn ui_scale(&self) -> f32 {
+        match &self.renderer {
+            Some(r) if self.touch.enabled => (r.height.min(r.width) as f32 / 720.0).clamp(1.0, 2.0),
+            _ => 1.0,
+        }
+    }
+
+    fn ui_size(&self) -> (f32, f32) {
+        let ui = self.ui_scale();
+        self.renderer
+            .as_ref()
+            .map(|r| (r.width as f32 / ui, r.height as f32 / ui))
+            .unwrap_or((1280.0, 720.0))
     }
 
     fn set_cursor_lock(&mut self, lock: bool) {
@@ -208,6 +240,7 @@ impl ExoDropApp {
 
 impl ApplicationHandler for ExoDropApp {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        event_loop.set_control_flow(ControlFlow::Poll);
         self.audio.resume();
         let window = match &self.window {
             Some(w) => Arc::clone(w),
@@ -235,12 +268,15 @@ impl ApplicationHandler for ExoDropApp {
         self.last_frame = Instant::now();
     }
 
-    fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
+    fn suspended(&mut self, event_loop: &ActiveEventLoop) {
+        // Poll with no surface would spin a core at 100% while the app sits in the background.
+        event_loop.set_control_flow(ControlFlow::Wait);
         // Mobile background suspend: release swapchain surface and pause audio cleanly!
         if let Some(renderer) = &mut self.renderer {
             renderer.suspend_surface();
         }
         self.audio.pause();
+        self.touch.reset(&mut self.input);
         if self.game.mode == GameMode::Playing {
             self.game.mode = GameMode::Paused;
         }
@@ -264,19 +300,35 @@ impl ApplicationHandler for ExoDropApp {
             }
             WindowEvent::Focused(false) => {
                 self.set_cursor_lock(false);
+                self.touch.reset(&mut self.input);
                 if self.game.mode == GameMode::Playing {
                     self.game.mode = GameMode::Paused;
                 }
             }
-            WindowEvent::Touch(touch) => {
-                let (w, h) = self
-                    .renderer
-                    .as_ref()
-                    .map(|r| (r.width as f32, r.height as f32))
-                    .unwrap_or((1280.0, 720.0));
+            WindowEvent::Touch(mut touch) => {
+                let (w, h) = self.ui_size();
+                let ui = self.ui_scale();
+                touch.location.x /= ui as f64;
+                touch.location.y /= ui as f64;
                 self.touch.on_touch(touch, self.game.mode, w, h, &mut self.input);
             }
             WindowEvent::KeyboardInput { event, .. } => {
+                // Android Back arrives as a logical key with no physical key code: pause in game, quit on title.
+                if matches!(
+                    event.logical_key,
+                    winit::keyboard::Key::Named(NamedKey::BrowserBack | NamedKey::GoBack)
+                ) {
+                    if event.state == ElementState::Pressed && !event.repeat {
+                        if self.game.mode == GameMode::Title {
+                            event_loop.exit();
+                        } else {
+                            self.input.on_key(Key::Escape, true);
+                        }
+                    } else if event.state == ElementState::Released {
+                        self.input.on_key(Key::Escape, false);
+                    }
+                    return;
+                }
                 if let PhysicalKey::Code(code) = event.physical_key {
                     let down = event.state == ElementState::Pressed;
                     if let Some(k) = map_key(code) {
@@ -317,9 +369,35 @@ impl ApplicationHandler for ExoDropApp {
                 let now = Instant::now();
                 let frame_dt = (now - self.last_frame).as_secs_f32().clamp(0.0, 0.05);
                 self.last_frame = now;
+                self.fps_frames += 1;
+                let window_secs = (now - self.fps_window_start).as_secs_f32();
+                if window_secs >= 5.0 {
+                    // One line every 5 s (logcat on Android, stderr-less no-op elsewhere without a logger).
+                    let fps = self.fps_frames as f32 / window_secs;
+                    let scale = self.renderer.as_ref().map(|r| r.render_scale()).unwrap_or(1.0);
+                    log::info!("FPS {fps:.1} mode {:?} render_scale {scale:.2}", self.game.mode);
+                    // Touch builds: step the 3D resolution down after ~10 s of play under 28 FPS (never back up,
+                    // so it can't oscillate). Floor 0.4 of the mobile starting scale's window size.
+                    if self.touch.enabled && self.game.mode == GameMode::Playing {
+                        if fps < 28.0 {
+                            self.slow_secs += window_secs;
+                        } else {
+                            self.slow_secs = 0.0;
+                        }
+                        if self.slow_secs >= 10.0 && scale > 0.4 {
+                            if let Some(r) = &mut self.renderer {
+                                r.set_render_scale((scale * 0.8).max(0.4));
+                                log::info!("QUALITY render_scale {:.2} -> {:.2}", scale, r.render_scale());
+                            }
+                            self.slow_secs = 0.0;
+                        }
+                    }
+                    self.fps_frames = 0;
+                    self.fps_window_start = now;
+                }
 
-                let screen_h = self.renderer.as_ref().map(|r| r.height as f32).unwrap_or(720.0);
-                self.touch.apply_to_input(screen_h, &mut self.input);
+                let (_, ui_h) = self.ui_size();
+                self.touch.apply_to_input(ui_h, &mut self.input);
 
                 self.game.handle_frame_input(&self.input, &self.audio);
                 let should_lock = self.game.mode == GameMode::Playing && !self.touch.enabled;
@@ -331,7 +409,10 @@ impl ApplicationHandler for ExoDropApp {
                 }
                 self.input.end_frame();
 
+                let ui = self.ui_scale();
+                let (rw, rh) = self.ui_size();
                 if let Some(renderer) = &mut self.renderer {
+                    renderer.set_hud_scale(ui);
                     if self.game.terrain_dirty {
                         let mesh = build_terrain_mesh(&self.game.terrain);
                         renderer.set_terrain_mesh(&mesh);
@@ -339,8 +420,6 @@ impl ApplicationHandler for ExoDropApp {
                     }
                     let cam = self.game.current_camera();
                     self.game.build_render_batches(&cam, &mut self.instances, &mut self.lights, &mut self.fx_verts);
-                    let rw = renderer.width as f32;
-                    let rh = renderer.height as f32;
                     hud_ui::build_hud(&self.game, &cam, rw, rh, self.touch.enabled, &mut self.hud);
                     self.touch.draw_overlay(self.game.mode, rw, rh, &mut self.hud);
                     let scene = SceneFrame {
@@ -357,7 +436,9 @@ impl ApplicationHandler for ExoDropApp {
                     };
                     match renderer.render_to_surface(&scene) {
                         Ok(()) => {}
-                        Err(SurfaceError::Lost) => renderer.resize(renderer.width, renderer.height),
+                        Err(SurfaceError::Lost | SurfaceError::Outdated) => {
+                            renderer.resize(renderer.width, renderer.height)
+                        }
                         Err(SurfaceError::OutOfMemory) => event_loop.exit(),
                         Err(_) => {}
                     }
