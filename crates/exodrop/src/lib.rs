@@ -149,6 +149,11 @@ pub fn android_main(android_app: android_activity::AndroidApp) {
             .with_max_level(log::LevelFilter::Info)
             .with_tag("exodrop"),
     );
+    // Android discards stderr, so a panic (including wgpu validation errors, which panic by default) would only
+    // show up as a bare SIGABRT. Route the message and location to logcat.
+    std::panic::set_hook(Box::new(|info| {
+        log::error!("PANIC: {info}\n{}", std::backtrace::Backtrace::force_capture());
+    }));
     let event_loop = EventLoop::builder()
         .with_android_app(android_app)
         .build()

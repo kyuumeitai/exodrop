@@ -1,0 +1,80 @@
+{
+  "verifiedAt": "2026-11-23T10:54:46+00:00",
+  "package": "cl.lunamedia.exodrop",
+  "version": "0.1.1",
+  "versionCode": 2,
+  "bundle": {
+    "file": "build/exodrop-0.1.1-2.aab",
+    "sha256": "d21441c90160190a62ee8f3d09818dbdc8760a716edd6e7fc772fa989bd16e02",
+    "playSha1": "6b3c5d57d59b5cf24106fb318c4a5ef075f0b01c",
+    "playSha256": "d21441c90160190a62ee8f3d09818dbdc8760a716edd6e7fc772fa989bd16e02"
+  },
+  "editCommit": {
+    "id": "05384701099457355108"
+  },
+  "tracksBefore": {
+    "internal": {
+      "track": "internal",
+      "releases": [
+        {
+          "name": "0.1.0 (1) - First Android test build",
+          "versionCodes": [
+            "1"
+          ],
+          "releaseNotes": [
+            {
+              "language": "en-US",
+              "text": "First test build of EXODROP on Android: three planetary sectors, four weapons, AI wingmen and the Dreadnought Goliath, with twin-stick touch controls. The 3D resolution adapts to your phone to keep it smooth."
+            },
+            {
+              "language": "es-419",
+              "text": "Primera versi\u00f3n de prueba de EXODROP en Android: tres sectores planetarios, cuatro armas, compa\u00f1eros con IA y el Dreadnought Goliath, con controles t\u00e1ctiles de doble stick. La resoluci\u00f3n 3D se adapta a tu tel\u00e9fono para que corra fluido."
+            }
+          ],
+          "status": "completed"
+        }
+      ]
+    }
+  },
+  "tracks": {
+    "internal": {
+      "track": "internal",
+      "releases": [
+        {
+          "name": "0.1.1 (2) - Launch fix",
+          "versionCodes": [
+            "2"
+          ],
+          "releaseNotes": [
+            {
+              "language": "en-US",
+              "text": "Fixes the game closing right after launch on some phones."
+            },
+            {
+              "language": "es-419",
+              "text": "Corrige el cierre del juego justo al abrirlo en algunos tel\u00e9fonos."
+            }
+          ],
+          "status": "draft"
+        },
+        {
+          "name": "0.1.0 (1) - First Android test build",
+          "versionCodes": [
+            "1"
+          ],
+          "releaseNotes": [
+            {
+              "language": "en-US",
+              "text": "First test build of EXODROP on Android: three planetary sectors, four weapons, AI wingmen and the Dreadnought Goliath, with twin-stick touch controls. The 3D resolution adapts to your phone to keep it smooth."
+            },
+            {
+              "language": "es-419",
+              "text": "Primera versi\u00f3n de prueba de EXODROP en Android: tres sectores planetarios, cuatro armas, compa\u00f1eros con IA y el Dreadnought Goliath, con controles t\u00e1ctiles de doble stick. La resoluci\u00f3n 3D se adapta a tu tel\u00e9fono para que corra fluido."
+            }
+          ],
+          "status": "completed"
+        }
+      ]
+    }
+  }
+}

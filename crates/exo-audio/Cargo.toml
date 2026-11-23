@@ -6,3 +6,8 @@ edition.workspace = true
 [dependencies]
 cpal.workspace = true
 log.workspace = true
+
+# Oboe's C++ runtime: link libc++_shared.so (shipped in jniLibs by build_android.sh). The default c++_static leaves
+# __cxa_pure_virtual & co. unresolved with NDK r27, so libexodrop.so fails to dlopen at launch.
+[target.'cfg(target_os = "android")'.dependencies]
+cpal = { workspace = true, features = ["oboe-shared-stdcxx"] }

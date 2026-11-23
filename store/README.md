@@ -19,10 +19,19 @@ on the MacBook and on deathscythe, and in the encrypted backup `kyuumeitai/lunam
 Upload certificate SHA-256: `26:4D:F8:E2:6B:14:37:7F:EB:D3:B6:EA:7E:6A:0F:06:62:EF:FE:38:07:34:D3:81:A9:F0:96:04:1D:CD:37:6F`.
 
 ## Play status (2026-11-23)
-Play app **4972904121177453582**. 0.1.0 (1) is **live on Internal testing** (testers: Lunamedia app testers,
+Play app **4972904121177453582**. 0.1.1 (2) is **live on Internal testing** (0.1.0 (1) crashed at launch, see below) (testers: Lunamedia app testers,
 opt-in https://play.google.com/apps/internaltest/4700260752231340664). Listing en-US + es-419 uploaded through the API;
 App content complete; IARC: ESRB Teen, PEGI 12 (Moderate Violence), USK 12, IARC generic 12+. First 10 changes sent for
 review on 2026-11-23. The one-time setup below is done; use "Every release" from now on.
+
+**Two launch crashes fixed in 0.1.1 (found on a POCO X5 Pro 5G, Adreno 642L / Vulkan, Android 14):**
+- Play **automatic protection** (Protected with Play → Installer check, on by default) injects
+  `com.pairip.application.Application` into the APKs Play serves. With `android:hasCode="false"` Android never loads
+  that dex → `ClassNotFoundException` at start. The manifest now has `hasCode="true"`; keep it.
+- `libexodrop.so` didn't list `libc++_shared.so` as NEEDED (Oboe's default `c++_static` with NDK r27), so dlopen
+  failed on `__cxa_pure_virtual`. exo-audio now enables cpal's `oboe-shared-stdcxx` on Android. Check with
+  `llvm-readelf -d libexodrop.so | grep NEEDED`.
+- Rust panics now go to logcat (tag `exodrop`, `PANIC: …`); before, Android discarded them with stderr.
 
 ## One-time setup in Play Console (alex@lunamedia.cl)
 1. **Create app:** name "EXODROP: Orbital Exo-Suit", default language English (US), *Game*, *Free*.
