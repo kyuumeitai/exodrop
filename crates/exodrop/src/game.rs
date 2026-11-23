@@ -440,6 +440,9 @@ impl GameState {
             }
         } else if self.mode == GameMode::GameOver {
             if input.key_pressed(Key::Enter) || input.key_pressed(Key::R) || input.key_pressed(Key::Space) {
+                // A retry starts the run over: score and kills don't carry across a death.
+                self.score = 0;
+                self.kills = 0;
                 self.reset_sector(self.biome, GameMode::Playing);
             }
         }
@@ -623,7 +626,8 @@ impl GameState {
             );
         }
         let boss_alive = self.enemies.iter().any(|e| e.alive && e.kind == EnemyKind::Goliath);
-        if alive_spires == 0 && self.boss_spawned && !boss_alive {
+        // Only from Playing: if the player died this same tick, GameOver must stand.
+        if self.mode == GameMode::Playing && alive_spires == 0 && self.boss_spawned && !boss_alive {
             self.mode = GameMode::SectorCleared;
             audio.play(SoundEvent::KillConfirm);
             self.push_comms(
@@ -922,7 +926,7 @@ impl GameState {
                 }
                 SquadOrder::AttackTarget => {
                     if let Some((tpos, _)) = nearest_tgt {
-                        let orbit = self.time * 0.8 + if w.formation_offset.x < 0.0 { 0.0 } else { 3.14 };
+                        let orbit = self.time * 0.8 + if w.formation_offset.x < 0.0 { 0.0 } else { std::f32::consts::PI };
                         let off = Vec3::new(orbit.cos() * 24.0, 0.0, orbit.sin() * 24.0);
                         let gx = tpos.x + off.x;
                         let gz = tpos.z + off.z;

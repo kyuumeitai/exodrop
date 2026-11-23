@@ -38,6 +38,23 @@ impl QualityPreset {
         }
     }
 
+    /// Point lights shaded per pixel (the game collects up to 16).
+    pub const fn max_point_lights(self) -> usize {
+        match self {
+            Self::Desktop => 16,
+            Self::Mobile => 6,
+        }
+    }
+
+    /// Starting 3D render scale for a window of this size. Mobile renders the scene at ~600 px on the short side
+    /// (the HUD stays native); the game can step it down further at runtime with `Renderer::set_render_scale`.
+    pub fn initial_render_scale(self, width: u32, height: u32) -> f32 {
+        match self {
+            Self::Desktop => 1.0,
+            Self::Mobile => (600.0 / width.min(height).max(1) as f32).clamp(0.25, 1.0),
+        }
+    }
+
     pub const fn bloom_passes(self) -> u32 {
         match self {
             Self::Desktop => 2,
@@ -226,6 +243,8 @@ pub struct Renderer {
     surface_config: Option<wgpu::SurfaceConfiguration>,
     output_format: wgpu::TextureFormat,
     quality: QualityPreset,
+    render_scale: f32,
+    hud_scale: f32,
     pub width: u32,
     pub height: u32,
 
@@ -273,20 +292,7 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new_windowed(window: Arc<Window>, width: u32, height: u32) -> Self {
-        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
-        let surface = instance.create_surface(window).expect("create wgpu surface");
-        let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-            power_preference: wgpu::PowerPreference::HighPerformance,
-            compatible_surface: Some(&surface),
-            force_fallback_adapter: false,
-        }))
-        .expect("request GPU adapter");
-
-        let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
-            label: Some("exo-gfx-device"),
-            ..Default::default()
-        }))
-        .expect("request GPU device");
+        let (instance, surface, adapter, device, queue) = Self::create_gpu(window);
 
         let caps = surface.get_capabilities(&adapter);
         let format = caps
@@ -322,6 +328,72 @@ impl Renderer {
         )
     }
 
+    /// Pick one backend before touching the window. An instance with every backend creates a surface for each,
+    /// and on Android the first one (Vulkan) connects to the ANativeWindow so the GL surface can't
+    /// ("BufferQueueProducer: already connected" -> "Invalid surface" panic). Android: Vulkan when the phone
+    /// has a Vulkan adapter, otherwise GLES. Other platforms keep wgpu's default backend set.
+    fn create_gpu(
+        window: Arc<Window>,
+    ) -> (wgpu::Instance, wgpu::Surface<'static>, wgpu::Adapter, wgpu::Device, wgpu::Queue) {
+        let candidates: &[wgpu::Backends] = if cfg!(target_os = "android") {
+            &[wgpu::Backends::VULKAN, wgpu::Backends::GL]
+        } else {
+            &[wgpu::Backends::all()]
+        };
+        for (i, &backends) in candidates.iter().enumerate() {
+            let last = i + 1 == candidates.len();
+            let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+                backends,
+                ..wgpu::InstanceDescriptor::from_env_or_default()
+            });
+            if !last && instance.enumerate_adapters(backends).is_empty() {
+                log::info!("exo-gfx: no {backends:?} adapter, trying the next backend");
+                continue;
+            }
+            let surface = match instance.create_surface(Arc::clone(&window)) {
+                Ok(s) => s,
+                Err(e) if !last => {
+                    log::warn!("exo-gfx: {backends:?} surface failed: {e}");
+                    continue;
+                }
+                Err(e) => panic!("create wgpu surface: {e}"),
+            };
+            let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::HighPerformance,
+                compatible_surface: Some(&surface),
+                force_fallback_adapter: false,
+            }));
+            match adapter {
+                Ok(adapter) => {
+                    let info = adapter.get_info();
+                    log::info!("exo-gfx: {:?} adapter {} ({})", info.backend, info.name, info.driver_info);
+                    let device = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+                        label: Some("exo-gfx-device"),
+                        // Ask for what this GPU actually offers: wgpu's default limits (8192 textures, compute)
+                        // fail on GLES 3.x phones such as PowerVR GE8322 (4096) and would panic at launch.
+                        required_limits: adapter.limits(),
+                        ..Default::default()
+                    }));
+                    match device {
+                        Ok((device, queue)) => return (instance, surface, adapter, device, queue),
+                        // Old Vulkan drivers (e.g. early Mali-G71) can list an adapter and still fail here.
+                        Err(e) if !last => {
+                            log::warn!("exo-gfx: {backends:?} device failed: {e}, trying the next backend");
+                            drop(surface);
+                        }
+                        Err(e) => panic!("request GPU device: {e}"),
+                    }
+                }
+                Err(e) if !last => {
+                    log::warn!("exo-gfx: {backends:?} adapter failed: {e}");
+                    drop(surface);
+                }
+                Err(e) => panic!("request GPU adapter: {e}"),
+            }
+        }
+        unreachable!("the last backend candidate either returns or panics")
+    }
+
     pub fn new_headless(width: u32, height: u32) -> Self {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
         let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
@@ -333,6 +405,9 @@ impl Renderer {
 
         let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
             label: Some("exo-gfx-headless"),
+            // Ask for what this GPU actually offers: wgpu's default limits (8192 textures, compute) fail on
+            // GLES 3.x phones such as PowerVR GE8322 (4096) and the device request would panic at launch.
+            required_limits: adapter.limits(),
             ..Default::default()
         }))
         .expect("request headless GPU device");
@@ -952,11 +1027,13 @@ impl Renderer {
             cache: None,
         });
 
+        let render_scale = quality.initial_render_scale(width, height);
+        let (scene_w, scene_h) = scaled_size(width, height, render_scale);
         let targets = create_screen_targets(
             &device,
             &queue,
-            width,
-            height,
+            scene_w,
+            scene_h,
             &linear_sampler,
             &bloom_bgl,
             &tonemap_bgl,
@@ -975,6 +1052,8 @@ impl Renderer {
             surface_config,
             output_format,
             quality,
+            render_scale,
+            hud_scale: 1.0,
             width,
             height,
             catalog_meshes,
@@ -1064,11 +1143,36 @@ impl Renderer {
             cfg.height = height;
             surface.configure(&self.device, cfg);
         }
+        self.rebuild_screen_targets();
+    }
+
+    /// 3D scene resolution as a fraction of the window (HUD and tonemap stay native). Mobile only steps it down.
+    pub fn render_scale(&self) -> f32 {
+        self.render_scale
+    }
+
+    /// HUD vertices are in a virtual space of (width, height) / scale pixels, so 2D UI keeps its physical size
+    /// on dense phone screens.
+    pub fn set_hud_scale(&mut self, scale: f32) {
+        self.hud_scale = scale.max(0.1);
+    }
+
+    pub fn set_render_scale(&mut self, scale: f32) {
+        let scale = scale.clamp(0.25, 1.0);
+        if (scale - self.render_scale).abs() < 0.001 {
+            return;
+        }
+        self.render_scale = scale;
+        self.rebuild_screen_targets();
+    }
+
+    fn rebuild_screen_targets(&mut self) {
+        let (scene_w, scene_h) = scaled_size(self.width, self.height, self.render_scale);
         self.targets = create_screen_targets(
             &self.device,
             &self.queue,
-            width,
-            height,
+            scene_w,
+            scene_h,
             &self.linear_sampler,
             &self.bloom_bgl,
             &self.tonemap_bgl,
@@ -1196,7 +1300,7 @@ impl Renderer {
             pos_radius: [0.0; 4],
             color_intensity: [0.0; 4],
         }; 16];
-        let light_count = frame.lights.len().min(16);
+        let light_count = frame.lights.len().min(self.quality.max_point_lights());
         for (i, l) in frame.lights.iter().take(light_count).enumerate() {
             gpu_lights[i] = PointLightGpu {
                 pos_radius: [l.position.x, l.position.y, l.position.z, l.radius],
@@ -1237,7 +1341,7 @@ impl Renderer {
         self.queue.write_buffer(&self.post_ub, 0, bytemuck::bytes_of(&post_u));
 
         let hud_u = HudUniformGpu {
-            screen_size: [self.width as f32, self.height as f32],
+            screen_size: [self.width as f32 / self.hud_scale, self.height as f32 / self.hud_scale],
             _pad: [0.0; 2],
         };
         self.queue.write_buffer(&self.hud_ub, 0, bytemuck::bytes_of(&hud_u));
@@ -1486,6 +1590,13 @@ fn upload_mesh(device: &wgpu::Device, mesh: &MeshData) -> GpuMesh {
 }
 
 #[allow(clippy::too_many_arguments)]
+fn scaled_size(width: u32, height: u32, scale: f32) -> (u32, u32) {
+    (
+        ((width as f32 * scale).round() as u32).max(1),
+        ((height as f32 * scale).round() as u32).max(1),
+    )
+}
+
 fn create_screen_targets(
     device: &wgpu::Device,
     queue: &wgpu::Queue,

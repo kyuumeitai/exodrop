@@ -141,6 +141,14 @@ impl TouchController {
 
         match touch.phase {
             TouchPhase::Started => {
+                // A new pointer can't share an id with a live one: drop any stale entry (a lost Ended/Cancelled)
+                // so it can't keep the stick or a button held forever.
+                if let Some(idx) = self.fingers.iter().position(|f| f.id == touch.id) {
+                    let stale = self.fingers.remove(idx);
+                    if let FingerRole::Button(b) = stale.role {
+                        Self::release_button_key(b, input);
+                    }
+                }
                 if mode != GameMode::Playing {
                     self.handle_menu_tap(pos, mode, width, height, input);
                     self.fingers.push(ActiveFinger {
@@ -214,16 +222,30 @@ impl TouchController {
                 if let Some(idx) = self.fingers.iter().position(|f| f.id == touch.id) {
                     let removed = self.fingers.remove(idx);
                     if let FingerRole::Button(b) = removed.role {
-                        match b {
-                            TouchButtonId::WeaponNext => input.on_key(Key::Tab, false),
-                            TouchButtonId::SquadNext => input.on_key(Key::Q, false),
-                            TouchButtonId::ViewToggle => input.on_key(Key::V, false),
-                            TouchButtonId::Pause => input.on_key(Key::Escape, false),
-                            TouchButtonId::Slam => input.on_key(Key::C, false),
-                            _ => {}
-                        }
+                        Self::release_button_key(b, input);
                     }
                 }
+            }
+        }
+    }
+
+    fn release_button_key(b: TouchButtonId, input: &mut InputState) {
+        match b {
+            TouchButtonId::WeaponNext => input.on_key(Key::Tab, false),
+            TouchButtonId::SquadNext => input.on_key(Key::Q, false),
+            TouchButtonId::ViewToggle => input.on_key(Key::V, false),
+            TouchButtonId::Pause => input.on_key(Key::Escape, false),
+            TouchButtonId::Slam => input.on_key(Key::C, false),
+            _ => {}
+        }
+    }
+
+    /// Forget every finger (app suspended or lost focus: Android won't send their Ended events).
+    /// The next `apply_to_input` then releases fire / jets / boost and centres the stick.
+    pub fn reset(&mut self, input: &mut InputState) {
+        for f in self.fingers.drain(..) {
+            if let FingerRole::Button(b) = f.role {
+                Self::release_button_key(b, input);
             }
         }
     }

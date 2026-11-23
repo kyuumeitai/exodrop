@@ -2,24 +2,51 @@ plugins {
     id 'com.android.application'
 }
 
+// Release signing: a properties file outside the repo (storeFile, storePassword, keyAlias, keyPassword).
+def signingProps = new Properties()
+def signingFile = System.getenv('EXODROP_SIGNING_PROPERTIES')
+if (signingFile != null && new File(signingFile).exists()) {
+    new File(signingFile).withInputStream { signingProps.load(it) }
+}
+def abis = (System.getenv('EXODROP_ABIS') ?: 'arm64-v8a,armeabi-v7a').split(',')
+
 android {
-    namespace 'com.kyuumeitai.exodrop'
+    namespace 'cl.lunamedia.exodrop'
     compileSdk 36
 
     defaultConfig {
-        applicationId "com.kyuumeitai.exodrop"
+        applicationId "cl.lunamedia.exodrop"
         minSdk 26
-        targetSdk 35
-        versionCode 1
-        versionName "0.1.0"
+        targetSdk 36
+        versionCode Integer.parseInt(project.findProperty('exodropVersionCode') ?: '1')
+        versionName project.findProperty('exodropVersionName') ?: '0.1.0'
         ndk {
-            abiFilters 'arm64-v8a'
+            abiFilters(*abis)
+        }
+    }
+
+    signingConfigs {
+        release {
+            if (signingProps['storeFile']) {
+                storeFile file(signingProps['storeFile'])
+                storePassword signingProps['storePassword']
+                keyAlias signingProps['keyAlias']
+                keyPassword signingProps['keyPassword']
+            }
         }
     }
 
     buildTypes {
         release {
             minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    packaging {
+        jniLibs {
+            // Compressed libs keep the download small; NativeActivity loads them after extraction.
+            useLegacyPackaging true
         }
     }
 }

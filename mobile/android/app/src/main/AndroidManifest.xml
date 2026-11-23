@@ -6,13 +6,14 @@
 
     <application
         android:label="EXODROP"
-        android:hasCode="false"
+        android:icon="@mipmap/ic_launcher"
+        android:hasCode="true"
         android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
         <activity
             android:name="android.app.NativeActivity"
             android:exported="true"
             android:screenOrientation="sensorLandscape"
-            android:configChanges="orientation|keyboardHidden|screenSize|screenLayout|smallestScreenSize">
+            android:configChanges="orientation|keyboard|keyboardHidden|navigation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|locale|layoutDirection">
             <meta-data
                 android:name="android.app.lib_name"
                 android:value="exodrop" />

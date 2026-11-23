@@ -1,0 +1,44 @@
+{
+  "verifiedAt": "2026-11-23T06:36:08+00:00",
+  "package": "cl.lunamedia.exodrop",
+  "version": "0.1.0",
+  "versionCode": 1,
+  "bundle": {
+    "file": "build/exodrop-0.1.0-1.aab",
+    "sha256": "ed624d735ef370286df3af42cf951f8c9851d3e6b64d7272e8cad2afa3b6311f",
+    "playSha1": "7304f9e10aa8a19633927526e14f1c47529f038b",
+    "playSha256": "ed624d735ef370286df3af42cf951f8c9851d3e6b64d7272e8cad2afa3b6311f"
+  },
+  "editCommit": {
+    "id": "18420391493752865149"
+  },
+  "tracksBefore": {
+    "internal": {
+      "track": "internal"
+    }
+  },
+  "tracks": {
+    "internal": {
+      "track": "internal",
+      "releases": [
+        {
+          "name": "0.1.0 (1) - First Android test build",
+          "versionCodes": [
+            "1"
+          ],
+          "releaseNotes": [
+            {
+              "language": "en-US",
+              "text": "First test build of EXODROP on Android: three planetary sectors, four weapons, AI wingmen and the Dreadnought Goliath, with twin-stick touch controls. The 3D resolution adapts to your phone to keep it smooth."
+            },
+            {
+              "language": "es-419",
+              "text": "Primera versi\u00f3n de prueba de EXODROP en Android: tres sectores planetarios, cuatro armas, compa\u00f1eros con IA y el Dreadnought Goliath, con controles t\u00e1ctiles de doble stick. La resoluci\u00f3n 3D se adapta a tu tel\u00e9fono para que corra fluido."
+            }
+          ],
+          "status": "draft"
+        }
+      ]
+    }
+  }
+}

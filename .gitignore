@@ -8,3 +8,4 @@ mobile/android/.gradle/
 mobile/android/build/
 mobile/android/app/build/
 mobile/android/app/src/main/jniLibs/
+build/
